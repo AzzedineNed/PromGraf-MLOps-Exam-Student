@@ -1,0 +1,78 @@
+groups:
+  - name: bike-api-availability
+    rules:
+      - alert: BikeApiDown
+        expr: up{job="bike-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: bike-api
+        annotations:
+          summary: "The Bike Sharing API is unreachable."
+          description: "Prometheus has been unable to scrape job 'bike-api' for more than 1 minute. Check the bike-api container with: docker compose logs bike-api"
+
+      - alert: NodeExporterDown
+        expr: up{job="node-exporter"} == 0
+        for: 1m
+        labels:
+          severity: warning
+          service: node-exporter
+        annotations:
+          summary: "node-exporter is unreachable."
+          description: "Host metrics have been unavailable for more than 1 minute; the Infrastructure Overview dashboard will show no data."
+
+      - alert: HighApiErrorRate
+        expr: sum(rate(api_requests_total{status_code!~"2.."}[5m])) / sum(rate(api_requests_total[5m])) > 0.2
+        for: 2m
+        labels:
+          severity: warning
+          service: bike-api
+        annotations:
+          summary: "More than 20% of API responses are errors."
+          description: "Non-2xx responses have exceeded 20% of traffic over the last 5 minutes."
+
+  - name: bike-model-quality
+    rules:
+      - alert: DataDriftDetected
+        expr: evidently_data_drift_detected_status == 1
+        for: 30s
+        labels:
+          severity: warning
+          service: bike-model
+        annotations:
+          summary: "Evidently reported dataset drift on the last evaluated batch."
+          description: "The share of drifted columns reached the 0.5 threshold. Expected at a warning level when February data is scored against a January reference; investigate if it appears on data that should match the reference."
+
+      # February against a January reference legitimately drifts about 0.54 of the
+      # monitored columns, so the warning above is the normal state of this dataset.
+      # This second tier separates that expected seasonal drift from a genuine
+      # incident: a corrupted or out-of-distribution batch pushes the share to 0.85.
+      - alert: SevereDataDrift
+        expr: evidently_drifted_columns_share > 0.7
+        for: 30s
+        labels:
+          severity: critical
+          service: bike-model
+        annotations:
+          summary: "Severe data drift: more than 70% of monitored columns have drifted."
+          description: "Well beyond the seasonal January/February difference. Suspect a broken upstream feed or an out-of-distribution batch rather than gradual drift."
+
+      - alert: ModelRMSEHigh
+        expr: model_rmse_score > 400
+        for: 30s
+        labels:
+          severity: critical
+          service: bike-model
+        annotations:
+          summary: "Model RMSE above the acceptable threshold."
+          description: "model_rmse_score has stayed above 400 bikes for more than 30 seconds, far outside the error observed on healthy February batches."
+
+      - alert: ModelR2Degraded
+        expr: model_r2_score < 0.5
+        for: 5m
+        labels:
+          severity: warning
+          service: bike-model
+        annotations:
+          summary: "Model R2 score has degraded."
+          description: "model_r2_score has been below 0.5 for more than 5 minutes; the model explains less variance than expected."

@@ -1,0 +1,22 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+# Paths are resolved relative to this file, so this reads /etc/prometheus/rules/
+rule_files:
+  - "rules/*.yml"
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Reached by Compose service name: 'localhost' here would be Prometheus itself.
+  - job_name: 'bike-api'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['bike-api:8080']
+
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']

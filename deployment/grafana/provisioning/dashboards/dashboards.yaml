@@ -1,0 +1,15 @@
+apiVersion: 1
+
+providers:
+  - name: 'bike-sharing-mlops'
+    orgId: 1
+    folder: 'Bike Sharing MLOps'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      # Bind-mounted from deployment/grafana/dashboards, so the dashboards are
+      # present on a first `make` without relying on any pre-existing volume.
+      path: /etc/grafana/dashboards
+      foldersFromFilesStructure: false

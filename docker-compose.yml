@@ -1,5 +1,90 @@
+# Explicit project name so volume and network names are identical on every machine
+# and cannot collide with volumes left behind by other courses.
+name: bike-monitoring
+
 services:
+  bike-api:
+    build: ./src/api
+    container_name: bike-api
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      # The model is fetched and trained at startup, so allow time before the
+      # container is considered unhealthy.
+      start_period: 90s
+    restart: always
+
   evaluation:
     build: ./src/evaluation
+    # One-shot script, not a long-running service: the profile keeps it out of
+    # `docker compose up` while still allowing `make evaluation` to run it.
+    profiles: ["tools"]
+    depends_on:
+      bike-api:
+        condition: service_healthy
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./deployment/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./deployment/prometheus/rules:/etc/prometheus/rules:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
     depends_on:
       - bike-api
+    restart: always
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      # Mounted per subdirectory rather than as the whole provisioning folder:
+      # mounting the parent shadows the image's own plugins/ and notifiers/
+      # directories and makes Grafana log a provisioning error at every start.
+      - ./deployment/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./deployment/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./deployment/grafana/provisioning/alerting:/etc/grafana/provisioning/alerting:ro
+      - ./deployment/grafana/dashboards:/etc/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+    restart: always
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      # $$ escapes the regex anchor so Compose does not treat it as a variable.
+      - '--collector.filesystem.mount-points-exclude=^/(dev|proc|sys|var/lib/docker/.+|var/run/docker/netns/.+)($$|/)'
+    restart: always
+
+volumes:
+  prometheus_data: {}
+  grafana_data: {}

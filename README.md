@@ -1,3 +1,14 @@
+> **Rendu / Submission —** ce dépôt contient la solution de l'examen.
+> Les choix d'implémentation, la justification des métriques personnalisées
+> et l'alerte testée par `make fire-alert` sont documentés dans
+> **[SOLUTION.md](SOLUTION.md)**. Démarrage : `make`.
+>
+> Implementation choices, the justification of the custom metrics and the
+> alert exercised by `make fire-alert` are documented in **SOLUTION.md**.
+> To start everything: `make`.
+
+---
+
 # Examen du cours Prometheus & Grafana. (English version below)
 
 ### Structure du repo :

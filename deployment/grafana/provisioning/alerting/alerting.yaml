@@ -1,0 +1,68 @@
+apiVersion: 1
+
+# Provisioned so that the Grafana ML alert exists on a first `make` on any machine,
+# rather than living only in this machine's grafana_data volume. It is visible and
+# editable in the Grafana UI under Alerting > Alert rules once loaded.
+groups:
+  - orgId: 1
+    name: model-performance
+    folder: 'Bike Sharing MLOps'
+    interval: 1m
+    rules:
+      - uid: bike-model-rmse-high
+        title: ModelRMSEHigh
+        condition: C
+        for: 1m
+        noDataState: NoData
+        execErrState: Error
+        labels:
+          severity: critical
+          team: mlops
+          service: bike-model
+        annotations:
+          summary: "Model RMSE above threshold"
+          description: "model_rmse_score has been above 400 for more than 1 minute. Either the regression model has degraded or a drifted batch was evaluated. Check the Model Performance & Drift dashboard."
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              editorMode: code
+              expr: model_rmse_score
+              instant: true
+              range: false
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: B
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: reduce
+              reducer: last
+              expression: A
+              datasource:
+                type: __expr__
+                uid: __expr__
+          - refId: C
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator:
+                    type: gt
+                    params:
+                      - 400
+              datasource:
+                type: __expr__
+                uid: __expr__
