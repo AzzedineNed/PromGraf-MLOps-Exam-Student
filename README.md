@@ -1,4 +1,4 @@
-> **Rendu / Submission —** ce dépôt contient la solution de l'examen.
+> **Rendu / Submission** ce dépôt contient la solution de l'examen.
 > Les choix d'implémentation, la justification des métriques personnalisées
 > et l'alerte testée par `make fire-alert` sont documentés dans
 > **[SOLUTION.md](SOLUTION.md)**. Démarrage : `make`.
